@@ -7,3 +7,4 @@ fastapi
 uvicorn
 python-dotenv
 beautifulsoup4
+langchain-huggingface==1.2.1

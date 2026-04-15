@@ -55,18 +55,22 @@ The system is orchestrated as a **Stateful Graph**. Each node represents a speci
 git clone [https://github.com/YOUR_USERNAME/RAG-LangChain.git](https://github.com/YOUR_USERNAME/RAG-LangChain.git)
 cd RAG-LangChain
 pip install -r requirements.txt
+```
 
 ### 2. Environment Setup
 ```bash 
 GROQ_API_KEY=your_groq_key_here
+```
 
 ### 3. Ingest Data
 ```bash 
 python src/ingestion/ingest.py
+```
 
 ### 4. Launch the Agent
 ```bash 
 python -m streamlit run app.py
+```
 
 ---
 

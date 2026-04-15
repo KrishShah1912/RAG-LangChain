@@ -15,9 +15,6 @@ def bs4_extractor(html: str) -> str:
 
 def run_ingestion():
     print("🚀 Starting Ingestion...")
-    
-    # 1. LOAD: Scrape the LangChain docs
-    # We'll start with a small section to keep it fast
     url = "https://python.langchain.com/docs/introduction/"
     loader = RecursiveUrlLoader(
         url=url, 
@@ -27,7 +24,6 @@ def run_ingestion():
     raw_docs = loader.load()
     print(f"✅ Loaded {len(raw_docs)} pages")
 
-    # 2. SPLIT: Break long docs into small chunks
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, 
         chunk_overlap=100
@@ -35,8 +31,6 @@ def run_ingestion():
     docs = text_splitter.split_documents(raw_docs)
     print(f"✂️ Split into {len(docs)} chunks")
 
-    # 3. EMBED & STORE: Using a local model (all-MiniLM-L6-v2)
-    # This downloads once and runs on your machine for FREE
     print("🧠 Embedding and saving to ChromaDB...")
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
@@ -46,7 +40,7 @@ def run_ingestion():
         persist_directory="./data/chroma_db"
     )
     
-    print("✨ Ingestion Complete! Data saved to ./data/chroma_db")
+    print("✨ Ingestion Completed! Data saved to ./data/chroma_db")
 
 if __name__ == "__main__":
     run_ingestion()

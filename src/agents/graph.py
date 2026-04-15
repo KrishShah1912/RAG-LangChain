@@ -8,8 +8,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 
-# LangGraph Imports (2026 Syntax)
+# LangGraph Imports
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ class GraphState(TypedDict):
     context: List[str]
     answer: str
     retry_count: int
-    is_relevant: str # 'yes' or 'no'
+    is_relevant: str 
 
 # --- 2. DEFINE THE NODES ---
 
@@ -32,17 +33,15 @@ def retrieve_node(state: GraphState):
         embedding_function=embeddings
     )
     
-    # Perform search
     docs = vectorstore.similarity_search(state["question"], k=3)
     context = [doc.page_content for doc in docs]
     
-    return {
-        "context": context, 
-        "retry_count": state.get("retry_count", 0)
-    }
+    # Initialize retry_count if it doesn't exist
+    count = state.get("retry_count", 0)
+    return {"context": context, "retry_count": count}
 
 def grade_documents_node(state: GraphState):
-    """Filters out irrelevant data."""
+    """Filters out irrelevant data using a fast LLM."""
     print("⚖️ [Node: Grade] Checking document relevance...")
     llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
     
@@ -58,11 +57,11 @@ def grade_documents_node(state: GraphState):
     return {"is_relevant": is_relevant}
 
 def rewrite_query_node(state: GraphState):
-    """Improves the question if the first search was bad."""
+    """Improves the search query if initial results were poor."""
     print("✍️ [Node: Rewrite] Optimizing search query...")
     llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
     
-    prompt = f"The previous search for '{state['question']}' yielded no relevant results. Rewrite this to be a more technical search query."
+    prompt = f"The previous search for '{state['question']}' yielded no relevant results. Rewrite this to be a more technical search query for documentation."
     new_query = llm.invoke(prompt).content
     
     return {
@@ -71,12 +70,12 @@ def rewrite_query_node(state: GraphState):
     }
 
 def generate_node(state: GraphState):
-    """Generates the final human-like answer."""
+    """Generates the final human-like answer using a high-reasoning LLM."""
     print("🧠 [Node: Generate] Drafting final response...")
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
     
     context_text = "\n\n".join(state["context"])
-    prompt = f"""Use the following context to answer the question. 
+    prompt = f"""Use the following context to answer the question accurately. 
     Context: {context_text}
     Question: {state['question']}
     Answer:"""
@@ -87,12 +86,12 @@ def generate_node(state: GraphState):
 # --- 3. CONDITIONAL ROUTING ---
 
 def decide_to_generate(state: GraphState) -> Literal["generate", "rewrite"]:
-    """Routing logic: Should we give up, rewrite, or answer?"""
+    """Determines the next step based on document relevance."""
     if state["is_relevant"] == "yes" or state["retry_count"] >= 2:
         return "generate"
     return "rewrite"
 
-# --- 4. ASSEMBLE THE GRAPH ---
+# --- 4. ASSEMBLE THE GRAPH WITH PERSISTENCE ---
 
 workflow = StateGraph(GraphState)
 
@@ -106,7 +105,7 @@ workflow.add_node("generate", generate_node)
 workflow.add_edge(START, "retrieve")
 workflow.add_edge("retrieve", "grade")
 
-# Add the Router
+# Add Routing Logic
 workflow.add_conditional_edges(
     "grade",
     decide_to_generate,
@@ -116,22 +115,33 @@ workflow.add_conditional_edges(
     }
 )
 
-# Loop back from rewrite to retrieve
+# Loop back from rewrite
 workflow.add_edge("rewrite", "retrieve")
 workflow.add_edge("generate", END)
 
-# Compile
-app = workflow.compile()
+# NEW FOR DAY 6: Setup Memory Checkpointer
+checkpointer = MemorySaver()
+
+# Compile with Memory
+app = workflow.compile(checkpointer=checkpointer)
 
 # --- 5. EXECUTION BLOCK ---
 
 if __name__ == "__main__":
-    print("\n🚀 Day 5: Corrective RAG Agent Online")
-    user_input = {"question": "How do I create a LangChain retriever?"}
+    print("\n🚀 Persistent Corrective RAG Agent Online")
     
-    # Stream the events so we see every node as it happens
-    for event in app.stream(user_input, stream_mode="updates"):
+    # 'thread_id' acts as the save-file name for this conversation
+    config = {"configurable": {"thread_id": "session_001"}}
+    
+    user_input = {"question": "What is the primary role of a LangChain retriever?"}
+    
+    # Use stream_mode="updates" to see each node finish in real-time
+    for event in app.stream(user_input, config=config, stream_mode="updates"):
         for node_name, state_update in event.items():
-            print(f"🏁 Finished Node: {node_name}")
+            print(f"🏁 Node '{node_name}' finished.")
             if "answer" in state_update:
-                print(f"\n🤖 FINAL ANSWER:\n{state_update['answer']}")
+                print(f"\n🤖 AGENT RESPONSE:\n{state_update['answer']}")
+
+    # Verification: Retrieve the state from memory
+    final_state = app.get_state(config)
+    print(f"\n💾 Persistence Check: Total Retries stored in memory: {final_state.values.get('retry_count')}")

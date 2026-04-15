@@ -8,3 +8,8 @@ uvicorn
 python-dotenv
 beautifulsoup4
 langchain-huggingface==1.2.1
+langgraph
+langchain-groqlanggraph==1.1.6
+langgraph-checkpoint==4.0.1
+langgraph-prebuilt==1.0.9
+langgraph-sdk==0.3.13

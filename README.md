@@ -4,14 +4,15 @@
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![LLM-Groq](https://img.shields.io/badge/LLM-Groq/Llama3.3-green.svg)](https://groq.com/)
 
-An advanced **Corrective Retrieval-Augmented Generation (CRAG)** system that doesn't just find information—it evaluates it. Built with a modular graph architecture, this agent identifies irrelevant data, rewrites search queries for precision, and maintains long-term conversational memory.
+An advanced **Corrective Retrieval-Augmented Generation (CRAG)** system that doesn't just find information,it evaluates it. Built with a modular graph architecture, this agent identifies irrelevant data, rewrites search queries for precision, and maintains long-term conversational memory.
 
 ---
 
 ## Project Overview
-Unlike "Generic RAG" systems that often hallucinate when search results are poor, this agent implements a **Reasoning Loop**. It acts as its own quality controller, ensuring the context provided to the LLM is accurate and relevant before generating a response.
+While **Generic RAG** systems rely on a "hope-and-pray" retrieval method—often hallucinating when search results are poor—this engine implements a **High-Fidelity Reasoning Loop**. 
 
-### Key Capabilities:
+By treating the retrieval process as an iterative task rather than a single step, the agent acts as its own quality controller. It rigorously validates context relevance before generation, effectively eliminating the "garbage-in, garbage-out" problem common in standard AI implementations.
+
 * **Self-Correction:** Automatically detects if retrieved documents are irrelevant to the user's query.
 * **Query Refinement:** Rewrites vague questions into optimized technical search queries.
 * **Persistent Memory:** Uses thread-safe checkpointers to remember conversation context.
@@ -28,7 +29,8 @@ The system is orchestrated as a **Stateful Graph**. Each node represents a speci
 ### The Workflow:
 1.  **Retrieve:** Performs a similarity search against a local **ChromaDB** vector store using **HuggingFace Embeddings**.
 2.  **Grade:** A specialized node evaluates the "Relevance" of the documents. 
-3.  **Decide:** * If relevant $\rightarrow$ Move to **Generate**.
+3.  **Decide:** 
+    * If relevant $\rightarrow$ Move to **Generate**.
     * If irrelevant/ambiguous $\rightarrow$ Move to **Rewrite**.
 4.  **Rewrite:** The agent analyzes why the search failed and generates a more effective query to try again.
 5.  **Generate:** The final response is drafted using the verified context, citing specific sources for transparency.

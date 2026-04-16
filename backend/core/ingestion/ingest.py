@@ -4,41 +4,49 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import RecursiveUrlLoader
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 from bs4 import BeautifulSoup as Soup
 
 load_dotenv()
 
 def ingest_data():
-    print("🌐 Starting Ingestion...")
-
     # 1. Load Data
     url = "https://python.langchain.com/docs/introduction/"
     loader = RecursiveUrlLoader(
         url=url, 
-        max_depth=1, # Depth 1 is faster for testing
+        max_depth=1, 
         extractor=lambda x: Soup(x, "html.parser").text
     )
     docs = loader.load()
+
+    # 2. Embeddings (Used to detect semantic shifts)
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+    # 3. Semantic Chunking
+    # Breakpoint at 95th percentile of distance between sentences
+    text_splitter = SemanticChunker(
+        embeddings, 
+        breakpoint_threshold_type="percentile"
+    )
     
-    # 2. Chunking
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     split_docs = text_splitter.split_documents(docs)
 
-    # 3. Vector DB
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    # 4. Save to ChromaDB (Wipe old one first)
+    db_path = "./data/chroma_db"
+    if os.path.exists(db_path):
+        import shutil
+        shutil.rmtree(db_path)
+        
     vectorstore = Chroma.from_documents(
         documents=split_docs,
         embedding=embeddings,
-        persist_directory="./data/chroma_db"
+        persist_directory=db_path
     )
 
-    # 4. Save for BM25
+    # 5. Save Pickle for BM25
     os.makedirs("./data", exist_ok=True)
     with open("./data/raw_documents.pkl", "wb") as f:
         pickle.dump(split_docs, f)
-    
-    print("🚀 Ingestion Complete!")
 
 if __name__ == "__main__":
     ingest_data()

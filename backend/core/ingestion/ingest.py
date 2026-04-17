@@ -33,7 +33,10 @@ def ingest_data():
 
     # 4. Save to ChromaDB (Wipe old one first)
     db_path = "./data/chroma_db"
+    
+    # Check if the folder exists and delete it
     if os.path.exists(db_path):
+        print(f"🧹 Clearing old database at {db_path}...")
         import shutil
         shutil.rmtree(db_path)
         

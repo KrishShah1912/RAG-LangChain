@@ -71,13 +71,12 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- User Input & Agent Response ---
+# --- User Input & Agent Response ---
 if prompt := st.chat_input("Ask me about the documents or search the web..."):
-    # Add user message to UI
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Configuration for LangGraph Memory
     config = {"configurable": {"thread_id": st.session_state.thread_id}}
     input_data = {"messages": [("user", prompt)]}
 
@@ -85,39 +84,29 @@ if prompt := st.chat_input("Ask me about the documents or search the web..."):
         with st.spinner("Agent is reasoning..."):
             final_answer = ""
             
-            # Streaming the graph execution
-            # version="v2" provides the standardized event structure for 2026
+            # Use a container for the streaming event data
             for event in agent_app.stream(input_data, config=config, stream_mode="values", version="v2"):
                 
-                # OPTION A: Extract from your custom 'answer' key
-                if "answer" in event and event["answer"]:
-                    # We check length to avoid 'yes'/'no' grading flags
-                    if len(str(event["answer"])) > 10:
+                # Check for the custom 'answer' key first
+                # We use 'temp_answer' to avoid losing data if the loop keeps spinning
+                if "answer" in event and isinstance(event["answer"], str):
+                    if len(event["answer"]) > 10:
                         final_answer = event["answer"]
                 
-                # OPTION B: Extract from the messages list (standard LangGraph)
-                elif "messages" in event and event["messages"]:
+                # Check messages list as fallback
+                if "messages" in event and event["messages"]:
                     last_msg = event["messages"][-1]
-                    
-                    # Ensure we grab content from the AI, not the user/tool
-                    msg_content = getattr(last_msg, "content", None)
-                    msg_type = getattr(last_msg, "type", "")
-                    
-                    if msg_content and msg_type == "ai":
-                        final_answer = msg_content
+                    # Robust check for AI content
+                    if getattr(last_msg, "type", "") == "ai" and last_msg.content:
+                        if len(last_msg.content) > 10:
+                            final_answer = last_msg.content
 
             # --- Final Rendering ---
             if final_answer:
                 st.markdown(final_answer)
                 st.session_state.messages.append({"role": "assistant", "content": final_answer})
             else:
-                # Emergency Fallback: If no AI message found, look for any message content
-                if "messages" in event and event["messages"]:
-                    fallback_content = event["messages"][-1].content
-                    if fallback_content:
-                        st.markdown(fallback_content)
-                        st.session_state.messages.append({"role": "assistant", "content": fallback_content})
-                    else:
-                        st.error("⚠️ Graph completed but returned empty content.")
-                else:
-                    st.error("⚠️ Could not retrieve answer. Check graph logs.")
+                # Debugging: If we got here, let's see what the LAST event actually was
+                st.error("⚠️ No AI message was captured.")
+                with st.expander("Debug: Final State"):
+                    st.write(event)

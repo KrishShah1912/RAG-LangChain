@@ -171,9 +171,9 @@ def generate_node(state: GraphState):
         full_content += "\n\n**Sources:**\n" + "\n".join([f"- {s}" for s in unique_sources])
 
     return {
-        "answer": full_content,
-        "messages": [AIMessage(content=full_content)]
-    }
+    "answer": full_content,
+    "messages": [AIMessage(content=full_content)]
+}
 
 # --- 5. GRAPH ROUTING ---
 

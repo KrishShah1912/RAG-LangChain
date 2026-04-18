@@ -115,18 +115,22 @@ def grade_documents_node(state: GraphState):
         return {"answer": "no"}
 
 def web_search_node(state: GraphState):
-    """Fallback to Tavily Web Search (Updated for 2026 Package)."""
+    """Fallback to Tavily Web Search."""
     print("🌐 [Node: Web Search]")
     last_message = get_text(state["messages"][-1])
-    
-    # 2026 Renaming Fix: use TavilySearch class
     search_tool = TavilySearch(max_results=3)
     
     try:
+        # Get raw response
         results = search_tool.invoke({"query": last_message})
+        
+        # Robust extraction: Tavily sometimes returns a dict with a 'results' key
+        # or a direct list of results depending on the library version.
+        search_hits = results if isinstance(results, list) else results.get("results", [])
+        
         return {
-            "context": [r["content"] for r in results],
-            "sources": [r["url"] for r in results],
+            "context": [r.get("content", "") for r in search_hits],
+            "sources": [r.get("url", "Web Search") for r in search_hits],
             "retry_count": 1
         }
     except Exception as e:

@@ -4,11 +4,10 @@ langchain-chroma>=1.1.0
 langchain-huggingface>=1.2.1
 langchain-groq>=1.1.2
 langchain-cohere>=0.5.1
+langchain-community>=0.4.1
 langgraph>=1.1.6
 pydantic>=2.12.5
 python-dotenv>=1.2.2
 sentence-transformers>=5.4.1
 pysqlite3-binary
 protobuf==4.25.3
-opentelemetry-api==1.24.0
-opentelemetry-sdk==1.24.0

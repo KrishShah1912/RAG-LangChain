@@ -1,7 +1,6 @@
 import sys
 import os
 import uuid
-import re
 import streamlit as st
 
 # ==========================================
@@ -82,41 +81,48 @@ if prompt := st.chat_input("Ask me about the documents..."):
             final_answer = ""
             last_event = {}
             
-            # Stream the graph execution
+            # Use stream_mode="values" to capture the full state evolution
             for event in agent_app.stream(input_data, config=config, stream_mode="values", version="v2"):
-                last_event = event # Keep track for debugging
+                last_event = event 
                 
-                # PATH 1: Direct Answer Extraction (High Priority)
+                # 1. PRIORITY: Check for the explicit 'answer' key (matches your debug log)
                 if "answer" in event and event["answer"]:
-                    ans_text = str(event["answer"])
-                    if len(ans_text) > 20: # Ignore short status flags like 'yes'
-                        final_answer = ans_text
-
-                # PATH 2: String Parsing Fallback (For serialized AIMessages)
+                    val = str(event["answer"])
+                    if len(val) > 20: # Ignore status flags like 'yes/no'
+                        final_answer = val
+                
+                # 2. FALLBACK: Manual String Extraction from the messages list
                 if not final_answer and "messages" in event and event["messages"]:
                     last_msg = event["messages"][-1]
                     msg_str = str(last_msg)
                     
-                    if "AIMessage" in msg_str and "content=" in msg_str:
-                        # Regex to pull content from AIMessage(content='...')
-                        match = re.search(r"content='(.*?)'", msg_str, re.DOTALL)
-                        if match:
-                            final_answer = match.group(1)
+                    # If it's a serialized string "AIMessage(content='...')"
+                    if "AIMessage" in msg_str and "content='" in msg_str:
+                        try:
+                            # Use slicing to find the exact content block between quotes
+                            start_idx = msg_str.find("content='") + 9
+                            end_idx = msg_str.find("', additional_kwargs=")
+                            if end_idx == -1: end_idx = msg_str.rfind("'")
+                            
+                            extracted = msg_str[start_idx:end_idx]
+                            if len(extracted) > 10:
+                                final_answer = extracted
+                        except:
+                            pass
                     
-                    # Normal Object Path
+                    # If it's a standard object
                     elif hasattr(last_msg, "content") and getattr(last_msg, "type", "") == "ai":
-                        if last_msg.content.strip():
+                        if len(last_msg.content) > 10:
                             final_answer = last_msg.content
 
-            # --- Final Rendering & Cleanup ---
+            # --- Final Rendering ---
             if final_answer:
-                # Fix escaped newlines (\n) from the serialized strings
-                clean_answer = final_answer.replace('\\n', '\n').replace('\\"', '"')
+                # CRITICAL: Clean up escaped characters from the serialized string
+                clean_answer = final_answer.replace('\\n', '\n').replace("\\'", "'").replace('\\"', '"')
                 
                 st.markdown(clean_answer)
                 st.session_state.messages.append({"role": "assistant", "content": clean_answer})
             else:
-                st.error("⚠️ Response captured in backend but failed UI render.")
-                # Show raw data if something went wrong
-                with st.expander("View Raw Output"):
+                st.error("⚠️ Response captured but failed to extract text.")
+                with st.expander("Debug Raw Output"):
                     st.write(last_event)

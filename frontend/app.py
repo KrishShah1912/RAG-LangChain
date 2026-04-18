@@ -1,6 +1,7 @@
 import sys
 import os
 import uuid
+import re
 import streamlit as st
 
 # ==========================================
@@ -21,7 +22,6 @@ except ImportError as e:
 # ==========================================
 st.set_page_config(page_title="Enterprise RAG v2", layout="wide", page_icon="🚀")
 
-# Custom CSS for a cleaner chat look
 st.markdown("""
     <style>
     .stChatMessage { border-radius: 12px; margin-bottom: 10px; padding: 15px; }
@@ -44,10 +44,8 @@ if "messages" not in st.session_state:
 with st.sidebar:
     st.title("⚙️ System Control")
     st.info(f"**Session ID:**\n`{st.session_state.thread_id}`")
-    
     st.divider()
     
-    # Quick API Check
     for key in ["GROQ_API_KEY", "TAVILY_API_KEY", "COHERE_API_KEY"]:
         if key in st.secrets or os.getenv(key):
             st.success(f"{key} Active ✅")
@@ -71,8 +69,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- User Input & Agent Response ---
-# --- User Input & Agent Response ---
-if prompt := st.chat_input("Ask me about the documents or search the web..."):
+if prompt := st.chat_input("Ask me about the documents..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -83,30 +80,43 @@ if prompt := st.chat_input("Ask me about the documents or search the web..."):
     with st.chat_message("assistant"):
         with st.spinner("Agent is reasoning..."):
             final_answer = ""
+            last_event = {}
             
-            # Use a container for the streaming event data
+            # Stream the graph execution
             for event in agent_app.stream(input_data, config=config, stream_mode="values", version="v2"):
+                last_event = event # Keep track for debugging
                 
-                # Check for the custom 'answer' key first
-                # We use 'temp_answer' to avoid losing data if the loop keeps spinning
-                if "answer" in event and isinstance(event["answer"], str):
-                    if len(event["answer"]) > 10:
-                        final_answer = event["answer"]
-                
-                # Check messages list as fallback
-                if "messages" in event and event["messages"]:
+                # PATH 1: Direct Answer Extraction (High Priority)
+                if "answer" in event and event["answer"]:
+                    ans_text = str(event["answer"])
+                    if len(ans_text) > 20: # Ignore short status flags like 'yes'
+                        final_answer = ans_text
+
+                # PATH 2: String Parsing Fallback (For serialized AIMessages)
+                if not final_answer and "messages" in event and event["messages"]:
                     last_msg = event["messages"][-1]
-                    # Robust check for AI content
-                    if getattr(last_msg, "type", "") == "ai" and last_msg.content:
-                        if len(last_msg.content) > 10:
+                    msg_str = str(last_msg)
+                    
+                    if "AIMessage" in msg_str and "content=" in msg_str:
+                        # Regex to pull content from AIMessage(content='...')
+                        match = re.search(r"content='(.*?)'", msg_str, re.DOTALL)
+                        if match:
+                            final_answer = match.group(1)
+                    
+                    # Normal Object Path
+                    elif hasattr(last_msg, "content") and getattr(last_msg, "type", "") == "ai":
+                        if last_msg.content.strip():
                             final_answer = last_msg.content
 
-            # --- Final Rendering ---
+            # --- Final Rendering & Cleanup ---
             if final_answer:
-                st.markdown(final_answer)
-                st.session_state.messages.append({"role": "assistant", "content": final_answer})
+                # Fix escaped newlines (\n) from the serialized strings
+                clean_answer = final_answer.replace('\\n', '\n').replace('\\"', '"')
+                
+                st.markdown(clean_answer)
+                st.session_state.messages.append({"role": "assistant", "content": clean_answer})
             else:
-                # Debugging: If we got here, let's see what the LAST event actually was
-                st.error("⚠️ No AI message was captured.")
-                with st.expander("Debug: Final State"):
-                    st.write(event)
+                st.error("⚠️ Response captured in backend but failed UI render.")
+                # Show raw data if something went wrong
+                with st.expander("View Raw Output"):
+                    st.write(last_event)

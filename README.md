@@ -18,7 +18,8 @@ The system is orchestrated as a **Stateful Micro-Agentic Graph**. Instead of a l
 * **Hybrid Retrieval:** Simultaneous keyword (BM25) and semantic (ChromaDB) search for maximum recall.
 * **Document Grading:** A specialized LLM node evaluates the relevance of each retrieved chunk against the user's intent.
 * **Reranking:** Relevant documents are re-ordered using **Cohere Rerank v3** to ensure the most critical context is at the top of the prompt.
-* **Decision Logic:** * **Context Sufficient?** Routes directly to Generation.
+* **Decision Logic:**  
+    * **Context Sufficient?** Routes directly to Generation.
     * **Context Lacking/Irrelevant?** Triggers Query Transformation and **Tavily Web Search**.
 * **Verified Generation:** The final answer is synthesized using only verified context, providing transparent citations and source URLs.
 

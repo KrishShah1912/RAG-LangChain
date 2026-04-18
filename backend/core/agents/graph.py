@@ -115,22 +115,30 @@ def grade_documents_node(state: GraphState):
         return {"answer": "no"}
 
 def web_search_node(state: GraphState):
-    """Fallback to Tavily Web Search."""
+    """Fallback to Tavily Web Search with robust parsing."""
     print("🌐 [Node: Web Search]")
     last_message = get_text(state["messages"][-1])
+    
+    # 2026 Tavily search tool
     search_tool = TavilySearch(max_results=3)
     
     try:
-        # Get raw response
+        # Get raw response from Tavily
         results = search_tool.invoke({"query": last_message})
         
-        # Robust extraction: Tavily sometimes returns a dict with a 'results' key
-        # or a direct list of results depending on the library version.
-        search_hits = results if isinstance(results, list) else results.get("results", [])
-        
+        # FIX: Ensure we are dealing with a list. 
+        # Sometimes Tavily returns a dict with 'results' key, sometimes a direct list.
+        if isinstance(results, dict):
+            search_hits = results.get("results", [])
+        elif isinstance(results, list):
+            search_hits = results
+        else:
+            search_hits = []
+
+        # FIX: Extract content safely using .get() to avoid "string indices" error
         return {
-            "context": [r.get("content", "") for r in search_hits],
-            "sources": [r.get("url", "Web Search") for r in search_hits],
+            "context": [r.get("content", "") for r in search_hits if isinstance(r, dict)],
+            "sources": [r.get("url", "Web Search") for r in search_hits if isinstance(r, dict)],
             "retry_count": 1
         }
     except Exception as e:

@@ -19,7 +19,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.message import add_messages
-from langchain_tavily import TavilySearchResults
+from langchain_tavily import TavilySearch
 
 # Day 11: Professional Reranking
 from langchain_cohere import CohereRerank
@@ -104,7 +104,7 @@ def web_search_node(state: GraphState):
     """Fallback to Tavily Web Search."""
     print("🌐 [Node: Web Search]")
     last_message = get_text(state["messages"][-1])
-    search_tool = TavilySearchResults(k=3)
+    search_tool = TavilySearch(k=3)
     
     try:
         results = search_tool.invoke({"query": last_message})

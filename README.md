@@ -77,7 +77,9 @@ streamlit run frontend/app.py
 
 ---
 
-### Project Structure
+## Project Structure
+
+```text
 ├── backend/
 │   ├── core/
 │   │   ├── agents/      # LangGraph node and graph definitions
@@ -87,5 +89,6 @@ streamlit run frontend/app.py
 │   └── app.py           # Streamlit UI and event stream handling
 ├── requirements.txt     # Production-ready dependencies
 └── README.md            # Project documentation
+```
 
 ---

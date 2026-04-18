@@ -7,14 +7,12 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
-# 1. The Judge (Smarter LLM)
 judge_llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
 
 class EvalResult(BaseModel):
     score: int = Field(description="Score from 1 to 5, where 5 is perfectly accurate.")
     reasoning: str = Field(description="Brief explanation of the score.")
 
-# 2. Test Cases (Your "Golden Dataset")
 test_cases = [
     {
         "question": "Who created LangChain?",
@@ -38,12 +36,10 @@ async def run_evaluation():
     for case in test_cases:
         print(f"❓ Testing: {case['question']}")
         
-        # Run your actual agent
         config = {"configurable": {"thread_id": "eval_test"}}
         result = app.invoke({"messages": [("user", case['question'])]}, config=config)
         agent_answer = result["messages"][-1].content
         
-        # The Judge evaluates the Agent
         judge_prompt = f"""
         System: You are an unbiased judge grading a RAG agent.
         User Question: {case['question']}

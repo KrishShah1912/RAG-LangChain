@@ -7,14 +7,11 @@ def create_hybrid_retriever(documents, vectorstore):
     """
     Combines BM25 (Keyword) and Chroma (Vector) for hybrid search.
     """
-    # 1. Setup Keyword Search (BM25)
     bm25_retriever = BM25Retriever.from_documents(documents)
     bm25_retriever.k = 3
     
-    # 2. Setup Vector Search (Chroma)
     vector_retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
     
-    # 3. Combine them using Reciprocal Rank Fusion (RRF)
     ensemble_retriever = EnsembleRetriever(
         retrievers=[bm25_retriever, vector_retriever],
         weights=[0.5, 0.5]

@@ -21,7 +21,7 @@ from langchain_tavily import TavilySearch
 
 # Day 11/12 Components
 from langchain_cohere import CohereRerank
-from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
+from langchain.retrievers import ContextualCompressionRetriever
 from backend.core.ingestion.hybrid_retriever import create_hybrid_retriever
 
 load_dotenv()

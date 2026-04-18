@@ -79,50 +79,58 @@ if prompt := st.chat_input("Ask me about the documents..."):
     with st.chat_message("assistant"):
         with st.spinner("Agent is reasoning..."):
             final_answer = ""
-            last_event = {}
+            last_event_captured = {}
             
-            # Use stream_mode="values" to capture the full state evolution
+            # Streaming events from the Graph
             for event in agent_app.stream(input_data, config=config, stream_mode="values", version="v2"):
-                last_event = event 
+                last_event_captured = event 
                 
-                # 1. PRIORITY: Check for the explicit 'answer' key (matches your debug log)
-                if "answer" in event and event["answer"]:
-                    val = str(event["answer"])
-                    if len(val) > 20: # Ignore status flags like 'yes/no'
+                # DRILL DOWN: Your logs show data is inside the 'data' key
+                payload = event.get("data", event) 
+
+                # 1. PRIORITY: Extract from payload['answer']
+                if "answer" in payload and payload["answer"]:
+                    val = str(payload["answer"])
+                    if len(val) > 20: # Ignore short flags
                         final_answer = val
                 
-                # 2. FALLBACK: Manual String Extraction from the messages list
-                if not final_answer and "messages" in event and event["messages"]:
-                    last_msg = event["messages"][-1]
-                    msg_str = str(last_msg)
+                # 2. FALLBACK: Extract from payload['messages']
+                if not final_answer and "messages" in payload and payload["messages"]:
+                    msgs = payload["messages"]
                     
-                    # If it's a serialized string "AIMessage(content='...')"
-                    if "AIMessage" in msg_str and "content='" in msg_str:
-                        try:
-                            # Use slicing to find the exact content block between quotes
+                    # Handle if messages is a dict {0: ..., 1: ...} or a list [...]
+                    try:
+                        if isinstance(msgs, dict):
+                            last_idx = max(msgs.keys())
+                            last_msg = msgs[last_idx]
+                        else:
+                            last_msg = msgs[-1]
+                        
+                        msg_str = str(last_msg)
+                        
+                        # Manual string parsing for "AIMessage(content='...') "
+                        if "AIMessage" in msg_str and "content='" in msg_str:
                             start_idx = msg_str.find("content='") + 9
                             end_idx = msg_str.find("', additional_kwargs=")
                             if end_idx == -1: end_idx = msg_str.rfind("'")
                             
                             extracted = msg_str[start_idx:end_idx]
-                            if len(extracted) > 10:
+                            if len(extracted) > 20:
                                 final_answer = extracted
-                        except:
-                            pass
-                    
-                    # If it's a standard object
-                    elif hasattr(last_msg, "content") and getattr(last_msg, "type", "") == "ai":
-                        if len(last_msg.content) > 10:
-                            final_answer = last_msg.content
+                    except Exception:
+                        pass
 
-            # --- Final Rendering ---
+            # --- Final Rendering & Formatting ---
             if final_answer:
-                # CRITICAL: Clean up escaped characters from the serialized string
-                clean_answer = final_answer.replace('\\n', '\n').replace("\\'", "'").replace('\\"', '"')
+                # Clean up literal backslashes and escaped newlines from serialization
+                clean_answer = (final_answer
+                                .replace('\\n', '\n')
+                                .replace("\\'", "'")
+                                .replace('\\"', '"'))
                 
                 st.markdown(clean_answer)
                 st.session_state.messages.append({"role": "assistant", "content": clean_answer})
             else:
-                st.error("⚠️ Response captured but failed to extract text.")
+                st.error("⚠️ Response found in backend but extraction logic failed.")
                 with st.expander("Debug Raw Output"):
-                    st.write(last_event)
+                    st.write(last_event_captured)

@@ -1,85 +1,91 @@
-# Agentic-RAG: Self-Corrective AI Research Engine
+# Agentic-RAG: Enterprise Self-Corrective AI Research Engine
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph_v0.2-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![LLM-Groq](https://img.shields.io/badge/LLM-Groq/Llama3.3-green.svg)](https://groq.com/)
+[![Search-Tavily](https://img.shields.io/badge/Search-Tavily-blue.svg)](https://tavily.com/)
 
-An advanced **Corrective Retrieval-Augmented Generation (CRAG)** system that doesn't just find information,it evaluates it. Built with a modular graph architecture, this agent identifies irrelevant data, rewrites search queries for precision, and maintains long-term conversational memory.
-
----
-
-## Project Overview
-While **Generic RAG** systems rely on a "hope-and-pray" retrieval method—often hallucinating when search results are poor—this engine implements a **High-Fidelity Reasoning Loop**. 
-
-By treating the retrieval process as an iterative task rather than a single step, the agent acts as its own quality controller. It rigorously validates context relevance before generation, effectively eliminating the "garbage-in, garbage-out" problem common in standard AI implementations.
-
-* **Self-Correction:** Automatically detects if retrieved documents are irrelevant to the user's query.
-* **Query Refinement:** Rewrites vague questions into optimized technical search queries.
-* **Persistent Memory:** Uses thread-safe checkpointers to remember conversation context.
-* **Hybrid Model Logic:** Uses **Llama-3.1-8B** for high-speed reasoning (grading/rewriting) and **Llama-3.3-70B** for high-fidelity synthesis.
+An advanced **Corrective Retrieval-Augmented Generation (CRAG)** system. Unlike traditional RAG, this engine treats retrieval as an iterative reasoning task—validating, reranking, and searching the live web to ensure high-fidelity, zero-hallucination outputs.
 
 ---
 
-## System Architecture
+## System Architecture and Workflow
 
-The system is orchestrated as a **Stateful Graph**. Each node represents a specific logical step, and edges define the flow based on real-time evaluation.
+The system is orchestrated as a **Stateful Micro-Agentic Graph**. Instead of a linear pipeline, the agent evaluates data quality at every logical junction, deciding whether to trust local documents or escalate to a live web search.
 
+### The Intelligent Reasoning Loop
 
-
-### The Workflow:
-1.  **Retrieve:** Performs a similarity search against a local **ChromaDB** vector store using **HuggingFace Embeddings**.
-2.  **Grade:** A specialized node evaluates the "Relevance" of the documents. 
-3.  **Decide:** 
-    * If relevant $\rightarrow$ Move to **Generate**.
-    * If irrelevant/ambiguous $\rightarrow$ Move to **Rewrite**.
-4.  **Rewrite:** The agent analyzes why the search failed and generates a more effective query to try again.
-5.  **Generate:** The final response is drafted using the verified context, citing specific sources for transparency.
+* **Hybrid Retrieval:** Simultaneous keyword (BM25) and semantic (ChromaDB) search for maximum recall.
+* **Document Grading:** A specialized LLM node evaluates the relevance of each retrieved chunk against the user's intent.
+* **Reranking:** Relevant documents are re-ordered using **Cohere Rerank v3** to ensure the most critical context is at the top of the prompt.
+* **Decision Logic:** * **Context Sufficient?** Routes directly to Generation.
+    * **Context Lacking/Irrelevant?** Triggers Query Transformation and **Tavily Web Search**.
+* **Verified Generation:** The final answer is synthesized using only verified context, providing transparent citations and source URLs.
 
 ---
 
-## The Tech Stack
+## Tech Stack
 
-| Layer | Technology | Purpose |
+| Layer | Technology | Role |
 | :--- | :--- | :--- |
-| **Orchestration** | **LangGraph** | Manages the state machine and conditional logic. |
-| **LLM Inference** | **Groq (Llama 3.1 & 3.3)** | Ultra-fast inference for real-time agentic loops. |
-| **Vector Database** | **ChromaDB** | High-performance local storage for document embeddings. |
-| **Embeddings** | **HuggingFace (all-MiniLM-L6-v2)** | Efficient open-source text vectorization. |
-| **Frontend UI** | **Streamlit** | Modern web interface with real-time process streaming. |
-| **Data Ingestion**| **BeautifulSoup / LangChain** | Recursive web scraping and document chunking. |
+| **Orchestration** | **LangGraph** | State machine management and conditional routing. |
+| **Inference** | **Groq (Llama 3.3-70B)** | High-speed LLM for grading, rewriting, and synthesis. |
+| **Search Engine** | **Tavily AI** | Optimized search for real-time web grounding. |
+| **Reranking** | **Cohere AI** | Contextual reranking to prioritize the highest quality data. |
+| **Vector Database** | **ChromaDB** | Local persistence for high-dimensional document embeddings. |
+| **Embeddings** | **HuggingFace** | `all-MiniLM-L6-v2` for efficient, local text vectorization. |
+| **Frontend UI** | **Streamlit** | Professional dashboard with real-time process streaming. |
+
+---
+
+## Key Features
+
+* **Self-Correction:** Automatically identifies and filters irrelevant information to prevent hallucinations.
+* **Agentic Search:** Autonomously executes web searches when local knowledge is insufficient or outdated.
+* **Conversational Memory:** Uses thread-safe persistence to maintain multi-turn dialogue context.
+* **Hybrid Retrieval Logic:** Combines the precision of keyword search with the depth of semantic search.
+* **Source Attribution:** Generates responses with specific citations and verifiable source links.
 
 ---
 
 ## Getting Started
 
-### 1. Clone & Install
+### 1. Installation
+
 ```bash
-git clone [https://github.com/YOUR_USERNAME/RAG-LangChain.git](https://github.com/YOUR_USERNAME/RAG-LangChain.git)
-cd RAG-LangChain
+git clone [https://github.com/YOUR_USERNAME/Agentic-RAG.git](https://github.com/YOUR_USERNAME/Agentic-RAG.git)
+cd Agentic-RAG
 pip install -r requirements.txt
 ```
 
 ### 2. Environment Setup
 ```bash 
 GROQ_API_KEY=your_groq_key_here
+TAVILY_API_KEY=your_tavily_key
+COHERE_API_KEY=your_cohere_key
 ```
 
-### 3. Ingest Data
+### 3. Ingest your documents
 ```bash 
-python src/ingestion/ingest.py
+python backend/core/ingestion/ingest.py
 ```
 
-### 4. Launch the Agent
+### 4. Launch the Dashboard
 ```bash 
-python -m streamlit run app.py
+streamlit run frontend/app.py
 ```
 
 ---
 
-## Advanced Features Included
-
-* Thread Persistence: Every user session is assigned a **thread_id**, allowing the agent to maintain state across multiple interactions.
-* Visual Thinking: The UI provides a **Status Breadcrumb**, showing the user exactly which node the agent is currently processing.
-* Source Attribution: The final generation node is prompted to cite specific indices from the retrieved context to minimize hallucinations.
+### Project Structure
+├── backend/
+│   ├── core/
+│   │   ├── agents/      # LangGraph node and graph definitions
+│   │   ├── ingestion/   # Document processing and vectorization
+│   │   └── tools/       # Custom retrieval and web search tools
+├── frontend/
+│   └── app.py           # Streamlit UI and event stream handling
+├── requirements.txt     # Production-ready dependencies
+└── README.md            # Project documentation
 
 ---
